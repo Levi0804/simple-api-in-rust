@@ -7,49 +7,40 @@ use crate::{
 };
 
 lazy_static! {
-    pub static ref GROUPS_JSON: String = fs::read_to_string("data/all_groups.json").unwrap();
+    static ref GROUPS_JSON: String = fs::read_to_string("data/all_groups.json").unwrap();
+    static ref GROUPS: Vec<Group<'static>> = serde_json::from_str(GROUPS_JSON.as_str()).unwrap();
 }
 
 #[get("/groups")]
 pub async fn get_groups(query: web::Query<QueryParams>) -> impl Responder {
-    let groups: Vec<Group> = serde_json::from_str(GROUPS_JSON.as_str()).unwrap();
-
-    match &query.q {
-        Some(q) => {
-            let group = groups
-                .into_iter()
-                .find(|group| group.name == q);
-
-            if let Some(group) = group {
-                HttpResponse::Ok().json(group)
-            } else {
-                HttpResponse::BadRequest().json(NotFound {
-                    status: "failed",
-                    message: "Invalid name"
-                })
-            }
-        },
-        None => {
-            let length = groups.len();
-            HttpResponse::Ok().json(Groups { length, groups })
-        }
+    if let Some(ref q) = query.q {
+        let group = GROUPS
+            .to_vec()
+            .into_iter()
+            .find(|group| group.name == q);
+        
+        group.map_or(HttpResponse::BadRequest().json(NotFound {
+            status: "failed",
+            message: "Invalid name"
+        }), |group|HttpResponse::Ok().json(group))
+    } else {
+        HttpResponse::Ok().json(Groups {
+            length: GROUPS.len(),
+            groups: GROUPS.to_vec() 
+        })
     }
 }
 
 #[get("/groups/{id}")]
 async fn get_group(path: web::Path<u32>) -> HttpResponse {
     let id = path.into_inner();
-
-    let groups: Vec<Group> = serde_json::from_str(&GROUPS_JSON.as_str()).unwrap();
-    let group = groups
+    let group = GROUPS
+        .to_vec()
         .into_iter()
         .find(|group| group.id == id);
 
-    match group {
-        Some(group) => HttpResponse::Ok().json(group),
-        None => HttpResponse::BadRequest().json(NotFound {
-            status: "failed",
-            message: "Invalid ID"
-        })
-    }
+    group.map_or(HttpResponse::BadRequest().json(NotFound {
+        status: "failed",
+        message: "Invalid name"
+    }), |group|HttpResponse::Ok().json(group))
 }

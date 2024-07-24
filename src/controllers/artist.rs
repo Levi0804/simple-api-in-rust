@@ -7,49 +7,40 @@ use crate::{
 };
 
 lazy_static! {
-    pub static ref ARTISTS_JSON: String = fs::read_to_string("data/all_artists.json").unwrap();
+    static ref ARTISTS_JSON: String = fs::read_to_string("data/all_artists.json").unwrap();
+    static ref ARTISTS: Vec<Artist<'static>> = serde_json::from_str(ARTISTS_JSON.as_str()).unwrap();
 }
 
 #[get("/artists")]
 pub async fn get_artists(query: web::Query<QueryParams>) -> impl Responder {
-    let artists: Vec<Artist> = serde_json::from_str(ARTISTS_JSON.as_str()).unwrap();
-
-    match &query.q {
-        Some(q) => {
-            let artist = artists
-                .into_iter()
-                .find(|artist| artist.full_name == q);
-
-            if let Some(artist) = artist {
-                HttpResponse::Ok().json(artist)
-            } else {
-                HttpResponse::BadRequest().json(NotFound {
-                    status: "failed",
-                    message: "Invalid name"
-                })
-            }
-        },
-        None => {
-            let length = artists.len();
-            HttpResponse::Ok().json(Artists { length, artists })
-        }
+    if let Some(ref q) = query.q {
+        let artist = ARTISTS
+            .to_vec()
+            .into_iter()
+            .find(|artist| artist.full_name == q);
+        
+        artist.map_or(HttpResponse::BadRequest().json(NotFound {
+            status: "failed",
+            message: "Invalid name"
+        }), |artist| HttpResponse::Ok().json(artist))
+    } else {
+        HttpResponse::Ok().json(Artists { 
+            length: ARTISTS.len(),
+            artists: ARTISTS.to_vec() 
+        })
     }
 }
 
 #[get("/artists/{id}")]
 async fn get_artist(path: web::Path<u32>) -> HttpResponse {
     let id = path.into_inner();
-
-    let artists: Vec<Artist> = serde_json::from_str(&ARTISTS_JSON.as_str()).unwrap();
-    let artist = artists
+    let artist = ARTISTS
+        .to_vec()
         .into_iter()
         .find(|artist| artist.id == id);
 
-    match artist {
-        Some(artist) => HttpResponse::Ok().json(artist),
-        None => HttpResponse::BadRequest().json(NotFound {
-            status: "failed",
-            message: "Invalid ID"
-        })
-    }
+    artist.map_or(HttpResponse::BadRequest().json(NotFound {
+        status: "failed",
+        message: "Invalid name"
+    }), |artist| HttpResponse::Ok().json(artist))
 }

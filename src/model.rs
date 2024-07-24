@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Actor<'a> {
     #[serde(rename = "Id")]
     pub id: u32,
@@ -22,7 +22,7 @@ pub struct Actor<'a> {
     gender: &'a str,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Artist<'a> {
     #[serde(rename = "Id")]
     pub id: u32,
@@ -48,7 +48,7 @@ pub struct Artist<'a> {
     gender: &'a str,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Group<'a> {
     #[serde(rename = "Id")]
     pub id: u32,

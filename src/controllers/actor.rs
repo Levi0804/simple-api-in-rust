@@ -7,50 +7,40 @@ use crate::{
 };
 
 lazy_static! {
-    pub static ref ACTORS_JSON: String = fs::read_to_string("data/all_actors.json").unwrap();
+    static ref ACTORS_JSON: String = fs::read_to_string("data/all_groups.json").unwrap();
+    static ref ACTORS: Vec<Actor<'static>> = serde_json::from_str(&ACTORS_JSON).unwrap();
 }
 
 #[get("/actors")]
 pub async fn get_actors(query: web::Query<QueryParams>) -> impl Responder {
-    let actors: Vec<Actor> = serde_json::from_str(ACTORS_JSON.as_str()).unwrap();
+    if let Some(ref q) = query.q {
+        let actor = ACTORS
+            .to_vec()
+            .into_iter()
+            .find(|actor| actor.full_name == q);
 
-    match &query.q {
-        Some(q) => {
-            let actor = actors
-                .into_iter()
-                .find(|actor| actor.full_name == q);
-
-            if let Some(actor) = actor {
-                HttpResponse::Ok().json(actor)
-            } else {
-                HttpResponse::BadRequest().json(NotFound {
-                    status: "failed",
-                    message: "Invalid name"
-                })
-            }
-        },
-        None => {
-            let length = actors.len();
-            HttpResponse::Ok().json(Actors { length, actors })
-        }
+        actor.map_or(HttpResponse::BadRequest().json(NotFound {
+            status: "failed",
+            message: "Invalid name"
+        }), |actor|HttpResponse::Ok().json(actor))
+    } else {
+        HttpResponse::Ok().json(Actors {
+            length: ACTORS.len(),
+            actors: ACTORS.to_vec() 
+        })
     }
 }
 
 #[get("/actors/{id}")]
 async fn get_actor(path: web::Path<u32>) -> HttpResponse {
     let id = path.into_inner();
-
-    let actors: Vec<Actor> = serde_json::from_str(&ACTORS_JSON.as_str()).unwrap();
-
-    let actor = actors
+    let actor = ACTORS
+        .to_vec()
         .into_iter()
         .find(|actor| actor.id == id);
 
-    match actor {
-        Some(actor) => HttpResponse::Ok().json(actor),
-        None => HttpResponse::BadRequest().json(NotFound {
-            status: "failed",
-            message: "Invalid ID"
-        })
-    }
+    actor.map_or(HttpResponse::BadRequest().json(NotFound {
+        status: "failed",
+        message: "Invalid name"
+    }), |actor|HttpResponse::Ok().json(actor))
 }
